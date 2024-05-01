@@ -1,7 +1,7 @@
 CC = /usr/bin/clang++
 
 build:
-	$(CC) -std=c++20 -o main main.cpp \
+	$(CC) -std=c++20 -o main src/main.cpp \
 -I include \
 -I/opt/homebrew/Cellar/sdl2/2.30.2/include \
 -L/opt/homebrew/Cellar/sdl2/2.30.2/lib \
