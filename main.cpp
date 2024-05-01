@@ -1,6 +1,7 @@
 
 #include <iostream>
 #include <string>
+#include <random>
 using namespace std;
 
 #include "include/olcConsoleGameEngine.h"
@@ -11,6 +12,7 @@ struct sBall{
 	float vx, vy;
 	float ax, ay;
 	float radius;
+	float mass;
 
 	int id;
 };
@@ -42,6 +44,8 @@ private:
 		b.ay = 0;
 
 		b.radius = r;
+		b.mass = r * 10.0f;
+
 		b.id = vecBalls.size();
 
 		vecBalls.emplace_back(b);
@@ -93,6 +97,14 @@ private:
 		return false;
 	}
 
+	float getRandomFloat(float min, float max) {
+		// Create random engine and distribution
+		std::random_device rd;
+		std::mt19937 gen(rd());
+		std::uniform_real_distribution<float> dist(min, max);
+
+		return dist(gen);
+}
 
 public: 
 	bool OnUserCreate(){
@@ -107,15 +119,23 @@ public:
 			);
 		}
 
-		float fDefaultRad = 20.0f;
-		AddBall(ScreenWidth() * 0.25f, ScreenHeight() * 0.5f, fDefaultRad);
-		AddBall(ScreenWidth() * 0.75f, ScreenHeight() * 0.5f, fDefaultRad);
+		float defaultRad = 50.0f;
+		// AddBall(ScreenWidth() * 0.25f, ScreenHeight() * 0.5f, defaultRad);
+		// AddBall(ScreenWidth() * 0.75f, ScreenHeight() * 0.5f, defaultRad);
+
+		for (int i = 0; i < 10; i++){
+			AddBall(
+				rand() % ScreenWidth(), 
+				rand() % ScreenHeight(), 
+				getRandomFloat(30.0f, 100.0f)
+			);
+		}
 
 		return true;
 	}
 
 	bool OnUserUpdate(float fElapsedTime){
-		if (m_mouse[0].bPressed){
+		if (m_mouse[0].bPressed || m_mouse[1].bPressed){
 			pSelectedBall = nullptr;
 			for (auto &ball: vecBalls){
 				if (
@@ -144,6 +164,46 @@ public:
 			pSelectedBall = nullptr;
 		}
 
+		if (m_mouse[1].bReleased){
+			if (pSelectedBall != nullptr){
+				pSelectedBall->vx = 5.0f * ((pSelectedBall->px) - (float)m_mousePosX);
+				pSelectedBall->vy = 5.0f * ((pSelectedBall->py) - (float)m_mousePosY);
+			}
+
+			pSelectedBall = nullptr;
+		}
+
+		vector<pair<sBall*, sBall*>> vecCollidingPairs;
+
+		// Update Ball Positions
+		for (auto &ball: vecBalls){
+			ball.ax = -ball.vx * 0.8f;
+			ball.ay = -ball.vy * 0.8f;
+
+			ball.vx += ball.ax * fElapsedTime;
+			ball.vy += ball.ay * fElapsedTime;
+			ball.px += ball.vx * fElapsedTime;
+			ball.py += ball.vy * fElapsedTime;
+
+			if (ball.px < 0){
+				ball.px += (float)ScreenWidth();
+			}
+			if (ball.px >= ScreenWidth()){
+				ball.px -= (float)ScreenWidth();
+			}
+			if (ball.py < 0){
+				ball.py += (float)ScreenHeight();
+			}
+			if (ball.py >= ScreenHeight()){
+				ball.py -= (float)ScreenHeight();
+			}
+
+			if (ball.vx * ball.vx + ball.vy * ball.vy < 0.01f){
+				ball.vx = 0;
+				ball.vy = 0;
+			} 
+		}
+
 		for (auto &ball: vecBalls){
 			for (auto &target: vecBalls){
 				// Skipping if we are comparing the same balls
@@ -165,6 +225,8 @@ public:
 					continue;
 				}
 
+				vecCollidingPairs.push_back({&ball, &target});
+
 				float distance_between_centers = GetDistanceBetweenBallCenters(
 					ball.px,
 					ball.py,
@@ -178,10 +240,44 @@ public:
 				ball.py -= overlap * (ball.py - target.py) / distance_between_centers;
 
 				// displace target ball
-				target.px += overlap * (target.px - target.px) / distance_between_centers;
-				target.py += overlap * (target.py - target.py) / distance_between_centers;
+				target.px += overlap * (ball.px - target.px) / distance_between_centers;
+				target.py += overlap * (ball.py - target.py) / distance_between_centers;
 				
 			}
+		}
+
+		// Work out dynamic collistions
+		for (auto c : vecCollidingPairs){
+			sBall *b1 = c.first;
+			sBall *b2 = c.second;
+
+			float distance = GetDistanceBetweenBallCenters(
+				b1->px,
+				b1->py,
+				b2->px,
+				b2->py
+			);
+
+			float normalX = (b2->px - b1->px) / distance;
+			float normalY = (b2->py - b1->py) / distance;
+
+			float tangentX = -normalY;
+			float tangentY = normalX;
+
+			float dpTan1 = b1->vx * tangentX + b1->vy * tangentY;
+			float dpTan2 = b2->vx * tangentX + b2->vy * tangentY;
+
+			float dpNorm1 = b1->vx * normalX + b1->vy * normalY;
+			float dpNorm2 = b2->vx * normalX + b2->vy * normalY;
+
+			float momentum1 = (dpNorm1 * (b1->mass - b2->mass) + 2.0f * b2->mass * dpNorm2) / (b1->mass + b2->mass);
+			float momentum2 = (dpNorm2 * (b2->mass - b1->mass) + 2.0f * b1->mass * dpNorm1) / (b1->mass + b2->mass);
+
+			b1->vx = tangentX * dpTan1 + normalX * momentum1;
+			b1->vy = tangentY * dpTan1 + normalY * momentum1;
+
+			b2->vx = tangentX * dpTan2 + normalX * momentum2;
+			b2->vy = tangentY * dpTan2 + normalY * momentum2;
 		}
 
 
@@ -195,6 +291,28 @@ public:
 				atan2f(ball.vy, ball.vx),
 				ball.radius,
 				FG_WHITE
+			);
+		}
+
+		for (auto collidingBallsPair: vecCollidingPairs){
+			DrawLine(
+				collidingBallsPair.first->px,
+				collidingBallsPair.first->py,
+				collidingBallsPair.second->px,
+				collidingBallsPair.second->py,
+				PIXEL_SOLID,
+				FG_RED
+			);
+		}
+
+		if (pSelectedBall != nullptr){
+			DrawLine(
+				pSelectedBall->px,
+				pSelectedBall->py,
+				m_mousePosX,
+				m_mousePosY,
+				PIXEL_SOLID,
+				FG_BLUE
 			);
 		}
 
