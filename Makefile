@@ -6,6 +6,7 @@ build:
 -I/opt/homebrew/Cellar/sdl2/2.30.2/include \
 -L/opt/homebrew/Cellar/sdl2/2.30.2/lib \
 -lSDL2
+
 clean:
 	rm -f main	
 
