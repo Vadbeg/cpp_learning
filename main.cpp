@@ -120,10 +120,11 @@ public:
 		}
 
 		float defaultRad = 50.0f;
+		int numberOfBalls = 20;
 		// AddBall(ScreenWidth() * 0.25f, ScreenHeight() * 0.5f, defaultRad);
 		// AddBall(ScreenWidth() * 0.75f, ScreenHeight() * 0.5f, defaultRad);
 
-		for (int i = 0; i < 10; i++){
+		for (int i = 0; i < numberOfBalls; i++){
 			AddBall(
 				rand() % ScreenWidth(), 
 				rand() % ScreenHeight(), 
@@ -323,7 +324,7 @@ public:
 int main(){
 	CirclePhysics game;
 
-	if (game.ConstructConsole(160 * 8, 120 * 8, 1, 1)){
+	if (game.ConstructConsole(160 * 8, 100 * 8, 1, 1)){
 		game.Start();
 	} else {
 		wcout << "Could not constrict console" << endl;
