@@ -109,7 +109,7 @@ private:
 public: 
 	bool OnUserCreate(){
 		modelCircle.push_back({0.0f, 0.0f});
-		int nPoints = 40;
+		int nPoints = 100;
 		for (int i = 0; i < nPoints; i++){
 			modelCircle.push_back(
 				{
@@ -162,6 +162,11 @@ public:
 		}
 
 		if (m_mouse[0].bReleased){
+			pSelectedBall->vx = 0.0f;
+			pSelectedBall->vy = 0.0f;
+			pSelectedBall->ax = 0.0f;
+			pSelectedBall->ay = 0.0f;
+
 			pSelectedBall = nullptr;
 		}
 
